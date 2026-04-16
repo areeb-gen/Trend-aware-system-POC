@@ -11,7 +11,7 @@ st.caption("Ask about any meme, trend, or cultural reference — Stampy will fin
 
 query = st.text_input("What meme or trend are you looking for?", placeholder="e.g. Trump as Jesus meme")
 
-if st.button("Search", disabled=not query):
+if st.button("Find your thing", disabled=not query):
     with st.spinner("Scouring the internet for the dankest content..."):
         try:
             results = search_meme(query)
