@@ -28,7 +28,7 @@ if st.button("Find your thing", disabled=not query):
     if results["images"]:
         st.subheader("Related images")
         cols = st.columns(min(len(results["images"]), 3))
-        for i, img_url in enumerate(results["images"][:6]):
+        for i, img_url in enumerate(results["images"][:13]):
             with cols[i % 3]:
                 st.image(img_url, use_container_width=True)
 

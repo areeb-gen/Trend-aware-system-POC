@@ -22,7 +22,7 @@ def _run_tavily(query: str, days: int | None, include_domains: list[str]) -> dic
         search_depth="advanced",
         include_images=True,
         include_answer=True,
-        max_results=7,
+        max_results=13,
     )
     if days:
         kwargs["days"] = days
