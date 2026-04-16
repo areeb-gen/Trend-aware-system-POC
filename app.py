@@ -32,6 +32,14 @@ if st.button("Find your thing", disabled=not query):
             with cols[i % 3]:
                 st.image(img_url, use_container_width=True)
 
+    with st.expander("How Stampy searched"):
+        params = results["search_params"]
+        st.write(f"**Query:** {params['query']}")
+        if params.get("days"):
+            st.write(f"**Time filter:** last {params['days']} days")
+        if params.get("include_domains"):
+            st.write(f"**Platforms:** {', '.join(params['include_domains'])}")
+
     if results["sources"]:
         with st.expander("Sources"):
             for s in results["sources"]:
