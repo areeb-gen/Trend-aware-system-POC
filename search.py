@@ -64,7 +64,7 @@ TOOLS = [
                     "include_domains": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Restrict to these domains e.g. ['reddit.com', 'instagram.com', 'twitter.com', 'tiktok.com', 'knowyourmeme.com']",
+                        "description": "Restrict to these domains e.g. ['reddit.com','api.meme.com', 'instagram.com', 'twitter.com', 'tiktok.com', 'knowyourmeme.com']",
                     },
                 },
                 "required": ["query"],
