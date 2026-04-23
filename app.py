@@ -31,7 +31,6 @@ with st.sidebar:
     synthesize = st.toggle(
         "LLM synthesis for explanation",
         value=False,
-        disabled=True,
         help="Disabled for now — using Tavily's built-in answer.",
     )
     freshness_rerank = st.toggle(
