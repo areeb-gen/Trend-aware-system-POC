@@ -19,7 +19,7 @@ with st.sidebar:
     )
     use_classifier = st.toggle(
         "Use light LLM classifier",
-        value=True,
+        value=False,
         help="On: one small LLM call picks topic/time_range and rewrites the query (e.g. appends the current year). Off: Tavily auto_parameters does the classification.",
     )
     use_pytrends = st.toggle(
@@ -36,7 +36,7 @@ with st.sidebar:
     )
     freshness_rerank = st.toggle(
         "Freshness re-rank sources",
-        value=True,
+        value=False,
         help="Multiplicative time decay on Tavily's relevance score.",
     )
 
