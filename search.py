@@ -266,8 +266,7 @@ def search_meme(query: str, config: Config | None = None) -> dict:
         exact_match = bool(cfg.exact_match_override)
         auto_parameters = True
 
-    # 3. Parallel Tavily: context search + dedicated image search
-    image_query = f"{rewritten} meme image photo"
+    # 3. Parallel Tavily: context search + dedicated image search (same query, different domain scope)
     with ThreadPoolExecutor(max_workers=2) as ex:
         fut_ctx = ex.submit(
             _run_tavily,
@@ -283,7 +282,7 @@ def search_meme(query: str, config: Config | None = None) -> dict:
         )
         fut_img = ex.submit(
             _run_tavily,
-            query=image_query,
+            query=rewritten,
             topic=None,
             time_range=time_range,
             include_domains=cfg.image_domains,
@@ -363,7 +362,7 @@ def search_meme(query: str, config: Config | None = None) -> dict:
             "answer": ctx.get("answer"),
         },
         "tavily_image": {
-            "query": image_query,
+            "query": rewritten,
             "params": {
                 "include_domains": cfg.image_domains,
                 "time_range": time_range,

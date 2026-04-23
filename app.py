@@ -22,12 +22,6 @@ with st.sidebar:
         value=False,
         help="On: one small LLM call picks topic/time_range and rewrites the query (e.g. appends the current year). Off: Tavily auto_parameters does the classification.",
     )
-    use_pytrends = st.toggle(
-        "Attach Google Trends signal (pytrends)",
-        value=False,
-        disabled=True,
-        help="Disabled for now — pytrends integration in progress.",
-    )
     synthesize = st.toggle(
         "LLM synthesis for explanation",
         value=False,
@@ -75,7 +69,7 @@ if st.button("Find your thing", disabled=not query, type="primary"):
     cfg = Config(
         provider=provider_key,
         use_classifier=use_classifier,
-        use_pytrends=use_pytrends,
+        use_pytrends=False,
         synthesize=synthesize,
         freshness_rerank=freshness_rerank,
         search_depth=search_depth,
