@@ -1,6 +1,6 @@
 # Stampy Trend Scout
 
-LLM-steered web search for memes and current trends. Ships with a **provider toggle** so we can A/B OpenAI `gpt-4o-mini` against xAI `grok-4-latest` on the same tool chain.
+Standalone PoC — Stampy with real-time meme and trend awareness. Ask about any meme or cultural reference; it searches the web via Tavily and returns an explanation plus images. Ships with a **provider toggle** so you can A/B OpenAI `gpt-4o-mini` against xAI `grok-4.20-non-reasoning` on the same pipeline.
 
 ## Quick start
 
@@ -10,6 +10,7 @@ streamlit run app.py
 ```
 
 Requires in `.env`:
+
 - `OPENAI_API_KEY`
 - `XAI_API_KEY`
 - `TAVILY_API_KEY`
@@ -20,51 +21,48 @@ Pick the provider from the dropdown in the UI.
 
 ```mermaid
 flowchart TD
-    U([User]) -->|query + provider choice| UI["Streamlit UI<br/>app.py<br/>radio: OpenAI | xAI Grok"]
-    UI -->|search_meme provider=...| ORCH["Orchestrator<br/>search.py"]
-    ORCH --> SWITCH{{"provider?"}}
-    SWITCH -->|openai| OA["OpenAI SDK client<br/>base_url: api.openai.com<br/>model: gpt-4o-mini"]
-    SWITCH -->|xai| XA["OpenAI SDK client<br/>base_url: api.x.ai/v1<br/>model: grok-4-latest"]
+    U([User]) -->|query + provider| UI["Streamlit UI · app.py"]
+    UI --> SM["search_meme(query, Config)<br/>search.py"]
 
-    subgraph LOOP["Tool loop — up to 4 iterations"]
-        direction TB
-        LLM["LLM<br/>today's date in system prompt<br/>must run news + image searches"]
-        TAV["Tavily search_web<br/>topic=news · time_range<br/>include_image_descriptions<br/>include_domains"]
-        LLM -->|tool_call| TAV
-        TAV -->|sources + images w/ descriptions| LLM
-    end
+    SM --> CLF{{"use_classifier?"}}
+    CLF -->|yes| OA["LLM classify + rewrite<br/>topic · time_range · exact_match"]
+    CLF -->|no| AP["Tavily auto_parameters"]
 
-    OA --> LLM
-    XA --> LLM
+    OA --> PAR["ThreadPoolExecutor<br/>2 Tavily calls in parallel"]
+    AP --> PAR
 
-    LLM -.->|final message, no more tool calls| SYN["Explanation<br/>2–3 sentences"]
+    PAR --> CTX["Context search<br/>rewritten query · topic · time_range<br/>include_image_descriptions optional"]
+    PAR --> IMG["Image-biased search<br/>rewritten + meme keywords<br/>include_domains"]
 
-    LOOP -->|all results| MERGE["Dedupe + merge by URL"]
-    MERGE --> FR["Freshness re-rank sources<br/>score × 0.5 ^ age_days / 14<br/>uses published_date"]
-    MERGE --> IMG["Images as-is from Tavily<br/>dedupe by URL<br/>descriptions → alt text"]
-    IMG -->|count = 0?| FB["Fallback Tavily search<br/>include_domains = imgur, reddit,<br/>knowyourmeme, api.meme, tenor"]
-    FB --> IMG
+    CTX --> MERGE["Dedupe sources + images by URL"]
+    IMG --> MERGE
 
-    FR --> OUT["Response"]
-    IMG --> OUT
-    SYN --> OUT
+    MERGE --> FR{{"freshness_rerank?"}}
+    FR -->|yes| RANK["fresh_score = score × 0.5 ^ (age_days / half_life)"]
+    FR -->|no| SORT["Sort by Tavily score"]
+    RANK --> SYN{{"synthesize?"}}
+    SORT --> SYN
+    SYN -->|yes| LLM2["LLM explanation from top sources"]
+    SYN -->|no| ANS["Tavily context answer"]
+    LLM2 --> OUT["Response"]
+    ANS --> OUT
     OUT --> UI
 ```
 
 ### Why this shape of A/B
 
-Both providers are OpenAI-compatible, so swapping `base_url` + `model` lets us hold the tool chain constant. Any behavioural difference comes from the LLM itself — how aggressive it is with `time_range=day`, which domains it picks for the image pass, how it phrases queries. If Grok wins here, the LLM is the lever. If it's a wash, the next experiment is moving Grok to the Responses API with its native `web_search` tool (deeper integration, real-time X data).
+Both providers are OpenAI-compatible, so swapping `base_url` + `model` keeps Tavily and orchestration identical. Any behavioural difference comes from the LLM — how it classifies the query, and (when synthesis is on) how it writes the summary. If Grok wins here, the model is the lever. If it is a wash, the next experiment is xAI Responses API with native `web_search` (deeper integration, real-time X data).
 
 ### Block notes
 
-- **Today's date in system prompt** — stops either LLM from defaulting to training-data recency (fixes "Bieber at Coachella" returning 2023).
-- **Provider switch** — single `OpenAI` SDK client with `base_url` swap. Zero duplication in the tool loop.
-- **Tool loop** — up to 4 `search_web` calls so the model can do news + image + follow-ups before synthesis.
-- **Freshness re-rank** — multiplicative time decay over Tavily's relevance score: `score × 0.5 ^ (age_days / 14)`. No embeddings, pure post-filter. Decay term only from arXiv 2509.19376.
-- **Images** — taken as-is from Tavily. The old HTTP-HEAD validator is **removed** (it was silently dropping valid URLs whose HEAD requests were slow or blocked — that's what caused "Trump as Jesus" to return zero). `include_image_descriptions` feeds alt text, not filtering.
-- **Image fallback** — if Tavily returns zero images across all LLM-issued searches, re-run a dedicated Tavily call scoped to image-heavy domains.
+- **Classifier** — optional small LLM call sets `topic`, `time_range`, and a rewritten query (e.g. current year for time-bound events). Off: Tavily `auto_parameters` drives search shape.
+- **Today's date in classifier prompt** — reduces wrong-year / stale training-data assumptions.
+- **Provider switch** — single OpenAI SDK client with `base_url` swap per provider.
+- **Parallel Tavily** — one context-wide search and one domain-scoped image-oriented search; results merged and deduped.
+- **Freshness re-rank** — multiplicative decay on Tavily relevance: `score × 0.5 ^ (age_days / half_life)`. Uses `published_date` when present.
+- **Images** — URLs from Tavily as returned (no HTTP HEAD filtering). `include_image_descriptions` applies to the context call; the image-domain pass disables descriptions to save credits where Tavily returns little anyway.
 
 ### Not yet wired
 
-- **xAI Responses API + native `web_search`** — real-time web + X, `enable_image_understanding`. The deeper Grok integration, queued behind the same-tools A/B above.
-- **pytrends-modern** — Google Trends velocity badge (`+320% this week`) + `related_queries` expansion. Deferred: 429 rate limits, coarse signal.
+- **xAI Responses API + native `web_search`** — real-time web + X, `enable_image_understanding`. Queued behind this OpenAI-compatible A/B.
+- **pytrends** — Google Trends velocity and related queries; optional in code, UI toggle still disabled while rate limits and signal quality are evaluated.
