@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 from tavily import TavilyClient
+from retrieval import retrieve as _rag_retrieve
 
 TODAY = date.today()
 TODAY_STR = TODAY.strftime("%B %d, %Y")
@@ -50,6 +51,21 @@ class Config:
     synthesize: bool = True
     image_domains: list[str] = field(default_factory=lambda: list(IMAGE_DOMAINS))
     include_image_descriptions: bool = True  # Tavily vision-model captions (context call only)
+    use_rag: bool = False
+    rag_top_k: int = 5
+
+
+def _time_range_to_dates(time_range: str | None) -> tuple[str | None, str | None]:
+    """Translate classifier time_range to (date_from, date_to) ISO strings."""
+    if not time_range:
+        return None, None
+    today = date.today()
+    offsets = {"day": 1, "week": 7, "month": 30, "year": 365}
+    days = offsets.get(time_range)
+    if not days:
+        return None, None
+    from datetime import timedelta
+    return (today - timedelta(days=days)).isoformat(), today.isoformat()
 
 
 def _make_client(provider: str) -> tuple[OpenAI, str]:
@@ -211,6 +227,7 @@ def _synthesize(
     query: str,
     sources: list[dict],
     trend_signal: dict | None,
+    rag_chunks: list[dict] | None = None,
 ) -> str:
     top = sources[:6]
     context = "\n\n".join(
@@ -224,10 +241,19 @@ def _synthesize(
         peak = trend_signal.get("peak_7d")
         trend_line = f"\nGoogle Trends (7d): current interest {cur} vs peak {peak}."
 
+    rag_section = ""
+    if rag_chunks:
+        rag_lines = "\n\n".join(
+            f"[{c['title']}] ({c.get('source', '')} · {c.get('brief_date', '')} · similarity {c.get('similarity', 0):.2f})\n{c['body']}"
+            for c in rag_chunks
+        )
+        rag_section = f"\nTrend knowledge base:\n{rag_lines}\n"
+
     prompt = (
         f"Today's date is {TODAY_STR}.\n"
-        f'User query: "{query}"{trend_line}\n\n'
-        f"Sources:\n{context or '(no content)'}\n\n"
+        f'User query: "{query}"{trend_line}\n'
+        f"{rag_section}\n"
+        f"Live web sources:\n{context or '(no content)'}\n\n"
         "Write 2–3 casual sentences explaining what this trend/meme is, where it started, and why it resonates. "
         "Call out any recency or engagement signal evident in the sources."
     )
@@ -266,8 +292,8 @@ def search_meme(query: str, config: Config | None = None) -> dict:
         exact_match = bool(cfg.exact_match_override)
         auto_parameters = True
 
-    # 3. Parallel Tavily: context search + dedicated image search (same query, different domain scope)
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    # 3. Parallel: Tavily context + image search + optional RAG retrieval
+    with ThreadPoolExecutor(max_workers=3) as ex:
         fut_ctx = ex.submit(
             _run_tavily,
             query=rewritten,
@@ -292,8 +318,14 @@ def search_meme(query: str, config: Config | None = None) -> dict:
             auto_parameters=False,
             include_image_descriptions=False,  # image call returns empty descriptions anyway
         )
+        if cfg.use_rag:
+            rag_date_from, rag_date_to = _time_range_to_dates(time_range)
+            fut_rag = ex.submit(_rag_retrieve, rewritten, cfg.rag_top_k, rag_date_from, rag_date_to)
+        else:
+            fut_rag = None
         ctx = fut_ctx.result()
         img = fut_img.result()
+        rag_chunks = fut_rag.result() if fut_rag else []
 
     # Tag each result with the tool call that produced it
     for s in ctx["sources"]:
@@ -332,7 +364,7 @@ def search_meme(query: str, config: Config | None = None) -> dict:
 
     # 6. Explanation: LLM synthesis OR Tavily's built-in answer
     explanation = (
-        _synthesize(client, model, query, all_sources, trend_signal)
+        _synthesize(client, model, query, all_sources, trend_signal, rag_chunks or None)
         if cfg.synthesize
         else (ctx.get("answer") or "")
     )
@@ -375,6 +407,12 @@ def search_meme(query: str, config: Config | None = None) -> dict:
         "synthesis": {
             "enabled": cfg.synthesize,
             "model": model if cfg.synthesize else None,
+        },
+        "rag": {
+            "enabled": cfg.use_rag,
+            "top_k": cfg.rag_top_k if cfg.use_rag else None,
+            "chunk_count": len(rag_chunks),
+            "chunks": rag_chunks,
         },
     }
 
