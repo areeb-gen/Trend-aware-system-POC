@@ -10,7 +10,7 @@ st.set_page_config(page_title="Stampy Trend Scout", page_icon="🕵️", layout=
 st.title("🕵️ Stampy Trend Scout")
 st.caption("Ask about any meme, trend, or cultural reference — Stampy will find it.")
 
-tab_search, tab_chat = st.tabs(["Search", "Chat with Stampy"])
+tab_chat, tab_search = st.tabs(["Chat with Stampy", "Search"])
 
 with st.sidebar:
     st.header("Controls")
