@@ -14,7 +14,13 @@ def _system_prompt() -> str:
 
 Today's date is {today.isoformat()}.
 
-You have access to an internal knowledge base of approved trend briefs. Always use the retrieve_trends tool to answer questions about trends, memes, or cultural moments — never answer from memory.
+You have two tools:
+1. retrieve_trends — searches the internal Supabase knowledge base of approved trend briefs
+2. search_web — searches the live web via Tavily for current results
+
+Always start with retrieve_trends. If it returns no results or too few, immediately try search_web with the same query. 
+If retrieve_trends returns results but they feel too narrow, also call search_web to enrich the answer. 
+Never give up after one empty tool result — always try the other tool before telling the user nothing was found.
 
 When the user mentions a time reference, translate it to ISO dates (YYYY-MM-DD):
 - "today" → date_from and date_to = {today.isoformat()}
@@ -22,7 +28,7 @@ When the user mentions a time reference, translate it to ISO dates (YYYY-MM-DD):
 - "last month" → date_from = {(today - timedelta(days=30)).isoformat()}, date_to = {today.isoformat()}
 - "this year" → date_from = {today.replace(month=1, day=1).isoformat()}, date_to = {today.isoformat()}
 
-Be concise, casual, and specific. Always ground your answer in what the tool returns."""
+Be concise, casual, and specific. Always ground your answer in what the tools return — never answer from memory."""
 
 
 def run(query: str, model: str = "gpt-4o-mini") -> tuple[str, list[dict]]:
