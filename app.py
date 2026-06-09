@@ -37,7 +37,7 @@ with st.sidebar:
     )
     use_rag = st.toggle(
         "RAG — Supabase knowledge base",
-        value=False,
+        value=True,
         help="Embed the query and retrieve semantically similar trend briefs from Supabase to enrich the explanation.",
     )
     rag_top_k = st.slider("RAG top-k chunks", 1, 20, 5, disabled=not use_rag)
@@ -210,9 +210,29 @@ with tab_search:
                     content = s.get("content") or ""
                     st.caption(content[:200] + "…" if len(content) > 200 else content)
 
+SUGGESTION_BUBBLES = [
+    "What's last 2 months trending on pinterest" ,
+    "Hot bachelorette party trends",
+    "What's going viral on Pinterest right now?",
+    "Punch monkey meme",
+    "FIFA World Cup 2026 fan culture trends",
+]
+
 with tab_chat:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
+    if "chat_trigger" not in st.session_state:
+        st.session_state.chat_trigger = None
+
+    # Show suggestion bubbles only on empty chat
+    if not st.session_state.chat_history:
+        st.markdown("#### Hey! What are you curious about?")
+        cols = st.columns(len(SUGGESTION_BUBBLES))
+        for i, suggestion in enumerate(SUGGESTION_BUBBLES):
+            with cols[i]:
+                if st.button(suggestion, use_container_width=True):
+                    st.session_state.chat_trigger = suggestion
+                    st.rerun()
 
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
@@ -223,7 +243,13 @@ with tab_chat:
                     with cols[idx % 3]:
                         st.image(img["url"], caption=img.get("description") or None, width="stretch")
 
-    if prompt := st.chat_input("Ask Stampy about any trend or meme..."):
+    prompt = st.session_state.chat_trigger or None
+    st.session_state.chat_trigger = None
+
+    if not prompt:
+        prompt = st.chat_input("Ask Stampy about any trend or meme...") or None
+
+    if prompt:
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
