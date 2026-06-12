@@ -18,7 +18,7 @@ SCHEMA = {
                 },
                 "top_k": {
                     "type": "integer",
-                    "description": "Number of trend briefs to retrieve (default 5)",
+                    "description": "Number of trend briefs to retrieve (default 25)",
                 },
                 "date_from": {
                     "type": "string",
@@ -35,5 +35,5 @@ SCHEMA = {
 }
 
 
-def execute(query: str, top_k: int = 5, date_from: str | None = None, date_to: str | None = None) -> list[dict]:
+def execute(query: str, top_k: int = 25, date_from: str | None = None, date_to: str | None = None) -> list[dict]:
     return retrieve(query, top_k=top_k, date_from=date_from, date_to=date_to)

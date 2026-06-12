@@ -52,7 +52,7 @@ class Config:
     image_domains: list[str] = field(default_factory=lambda: list(IMAGE_DOMAINS))
     include_image_descriptions: bool = True  # Tavily vision-model captions (context call only)
     use_rag: bool = False
-    rag_top_k: int = 5
+    rag_top_k: int = 30
 
 
 def _time_range_to_dates(time_range: str | None) -> tuple[str | None, str | None]:
