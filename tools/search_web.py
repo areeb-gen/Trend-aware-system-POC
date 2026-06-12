@@ -1,5 +1,15 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from tavily import TavilyClient
+
+# Domains known to serve embeddable images (no hotlink/session protection).
+IMAGE_DOMAINS = [
+    "imgur.com",
+    "reddit.com",
+    "knowyourmeme.com",
+    "tenor.com",
+    "giphy.com",
+]
 
 SCHEMA = {
     "type": "function",
@@ -33,6 +43,19 @@ SCHEMA = {
 }
 
 
+def _extract_images(result: dict) -> list[dict]:
+    images = []
+    for img in result.get("images", []):
+        if isinstance(img, dict) and img.get("url"):
+            url = img["url"]
+        elif isinstance(img, str):
+            url = img
+        else:
+            continue
+        images.append({"url": url, "description": img.get("description", "") if isinstance(img, dict) else ""})
+    return images
+
+
 def execute(query: str, time_range: str | None = None, max_results: int = 10) -> dict:
     tavily = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
     kwargs: dict = dict(
@@ -46,18 +69,25 @@ def execute(query: str, time_range: str | None = None, max_results: int = 10) ->
     if time_range:
         kwargs["time_range"] = time_range
 
-    result = tavily.search(**kwargs)
+    image_kwargs: dict = dict(
+        query=query,
+        search_depth="advanced",
+        include_answer=False,
+        include_images=True,
+        include_image_descriptions=False,
+        max_results=max_results,
+        include_domains=IMAGE_DOMAINS,
+    )
+    if time_range:
+        image_kwargs["time_range"] = time_range
 
-    raw_images = result.get("images", [])
-    images = []
-    for img in raw_images:
-        if isinstance(img, dict) and img.get("url"):
-            url = img["url"]
-        elif isinstance(img, str):
-            url = img
-        else:
-            continue
-        images.append({"url": url, "description": img.get("description", "") if isinstance(img, dict) else ""})
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        fut_main = ex.submit(tavily.search, **kwargs)
+        fut_images = ex.submit(tavily.search, **image_kwargs)
+        result = fut_main.result()
+        image_result = fut_images.result()
+
+    images = _extract_images(result) + _extract_images(image_result)
 
     sources = [
         {
