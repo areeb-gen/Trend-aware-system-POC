@@ -24,7 +24,7 @@ SCHEMA = {
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "Number of results to return (default 5)",
+                    "description": "Number of results to return (default 10). Each result can include an image, so use a higher value (e.g. 10-15) when the user wants visuals.",
                 },
             },
             "required": ["query"],
@@ -33,7 +33,7 @@ SCHEMA = {
 }
 
 
-def execute(query: str, time_range: str | None = None, max_results: int = 5) -> dict:
+def execute(query: str, time_range: str | None = None, max_results: int = 10) -> dict:
     tavily = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
     kwargs: dict = dict(
         query=query,
