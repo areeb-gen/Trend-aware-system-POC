@@ -11,6 +11,7 @@ logging.basicConfig(level=logging.INFO, format="%(name)s | %(message)s")
 def _system_prompt() -> str:
     today = date.today()
     return f"""You are Stampy, a trend intelligence assistant. You help users discover trends, memes, cultural moments, and emerging trends.
+    Your answers are user facing, so keep them as you are talking to a user, be a natural assistant and try to be concise.
 
 Today's date is {today.isoformat()}.
 
@@ -31,7 +32,7 @@ When the user mentions a time reference, translate it to ISO dates (YYYY-MM-DD):
 Be concise, casual, and specific. Always ground your answer in what the tools return — never answer from memory."""
 
 
-def run(query: str, model: str = "gpt-4o-mini") -> tuple[str, list[dict]]:
+def run(query: str, model: str = "gpt-5-mini") -> tuple[str, list[dict]]:
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     messages = [
         {"role": "system", "content": _system_prompt()},

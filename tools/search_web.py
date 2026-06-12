@@ -52,9 +52,12 @@ def execute(query: str, time_range: str | None = None, max_results: int = 5) -> 
     images = []
     for img in raw_images:
         if isinstance(img, dict) and img.get("url"):
-            images.append({"url": img["url"], "description": img.get("description", "")})
+            url = img["url"]
         elif isinstance(img, str):
-            images.append({"url": img, "description": ""})
+            url = img
+        else:
+            continue
+        images.append({"url": url, "description": img.get("description", "") if isinstance(img, dict) else ""})
 
     sources = [
         {

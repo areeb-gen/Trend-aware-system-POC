@@ -1,5 +1,7 @@
+import base64
 import html
 
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 from search import Config, IMAGE_DOMAINS, PROVIDERS, search_meme
@@ -8,13 +10,41 @@ from agent import run as agent_run
 load_dotenv()
 
 
-def render_image_grid(items: list[dict], n_cols: int = 3, height: int = 220) -> None:
-    """Render images in a uniform-size grid (fixed height, cropped to fit)."""
+@st.cache_data(show_spinner=False, ttl=3600)
+def _fetch_image_data_uri(url: str) -> str | None:
+    """Fetch an image server-side and return a data: URI, bypassing browser hotlink blocks."""
+    try:
+        resp = requests.get(url, timeout=3, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        content_type = resp.headers.get("Content-Type", "image/jpeg")
+        if not content_type.startswith("image/"):
+            return None
+        encoded = base64.b64encode(resp.content).decode()
+        return f"data:{content_type};base64,{encoded}"
+    except Exception:
+        return None
+
+
+def render_image_grid(items: list[dict], n_cols: int = 3, height: int = 220, max_display: int = 9) -> None:
+    """Render images in a uniform-size grid (fixed height, cropped to fit).
+
+    Images that can't be fetched server-side (dead links, blocked hosts) are
+    skipped entirely rather than leaving a broken tile. `items` may contain more
+    than `max_display` candidates so skipped ones can be backfilled.
+    """
+    resolved = []
+    for item in items:
+        if len(resolved) >= max_display:
+            break
+        src = _fetch_image_data_uri(item["url"])
+        if src:
+            resolved.append({**item, "src": src})
+
     cols = st.columns(n_cols)
-    for idx, item in enumerate(items):
+    for idx, item in enumerate(resolved):
         with cols[idx % n_cols]:
             st.markdown(
-                f'<img src="{html.escape(item["url"])}" '
+                f'<img src="{html.escape(item["src"])}" '
                 f'style="width:100%;height:{height}px;object-fit:cover;border-radius:8px;" />',
                 unsafe_allow_html=True,
             )
@@ -32,12 +62,7 @@ tab_chat, tab_search = st.tabs(["Chat with Stampy", "Search"])
 
 with st.sidebar:
     st.header("Controls")
-    provider_key = st.selectbox(
-        "Model",
-        options=list(PROVIDERS.keys()),
-        format_func=lambda k: PROVIDERS[k]["label"],
-        index=0,
-    )
+    provider_key = list(PROVIDERS.keys())[0]
     use_classifier = st.toggle(
         "Use light LLM classifier",
         value=False,
@@ -257,7 +282,7 @@ with tab_chat:
             if msg.get("images"):
                 render_image_grid([
                     {"url": img["url"], "caption": img.get("description") or None}
-                    for img in msg["images"][:9]
+                    for img in msg["images"][:20]
                 ])
 
     prompt = st.session_state.chat_trigger or None
@@ -280,10 +305,10 @@ with tab_chat:
                     st.stop()
             st.markdown(response)
             if images:
-                cols = st.columns(3)
-                for idx, img in enumerate(images[:9]):
-                    with cols[idx % 3]:
-                        st.image(img["url"], caption=img.get("description") or None, width="stretch")
+                render_image_grid([
+                    {"url": img["url"], "caption": img.get("description") or None}
+                    for img in images[:20]
+                ])
 
         st.session_state.chat_history.append({
             "role": "assistant",
