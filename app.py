@@ -1,9 +1,27 @@
+import html
+
 import streamlit as st
 from dotenv import load_dotenv
 from search import Config, IMAGE_DOMAINS, PROVIDERS, search_meme
 from agent import run as agent_run
 
 load_dotenv()
+
+
+def render_image_grid(items: list[dict], n_cols: int = 3, height: int = 220) -> None:
+    """Render images in a uniform-size grid (fixed height, cropped to fit)."""
+    cols = st.columns(n_cols)
+    for idx, item in enumerate(items):
+        with cols[idx % n_cols]:
+            st.markdown(
+                f'<img src="{html.escape(item["url"])}" '
+                f'style="width:100%;height:{height}px;object-fit:cover;border-radius:8px;" />',
+                unsafe_allow_html=True,
+            )
+            if item.get("caption"):
+                st.caption(item["caption"])
+            if item.get("link"):
+                st.markdown(item["link"])
 
 st.set_page_config(page_title="Stampy Trend Scout", page_icon="🕵️", layout="wide")
 
@@ -40,7 +58,6 @@ with st.sidebar:
         value=True,
         help="Embed the query and retrieve semantically similar trend briefs from Supabase to enrich the explanation.",
     )
-    rag_top_k = st.slider("RAG top-k chunks", 1, 20, 5, disabled=not use_rag)
 
     with st.expander("Advanced search"):
         search_depth = st.selectbox(
@@ -93,7 +110,6 @@ with tab_search:
             image_domains=[d.strip() for d in domains_text.split(",") if d.strip()],
             include_image_descriptions=include_image_descriptions,
             use_rag=use_rag,
-            rag_top_k=rag_top_k,
         )
 
         with st.spinner("Scouring the internet for your dankest thing..."):
@@ -129,19 +145,21 @@ with tab_search:
                 "If a tile is blank, the host is hotlink-protected (Reddit, X, some CDNs "
                 "block cross-origin embeds). Use the Open ↗ link to view directly."
             )
-            cols = st.columns(3)
-            for idx, url in enumerate(images[:13]):
-                with cols[idx % 3]:
-                    meta_entry = image_meta.get(url, {})
-                    caption_bits = []
-                    if meta_entry.get("description"):
-                        caption_bits.append(meta_entry["description"])
-                    if meta_entry.get("source_call"):
-                        caption_bits.append(f"via {meta_entry['source_call']}")
-                    caption = " · ".join(caption_bits) if caption_bits else None
-                    st.image(url, caption=caption, width="stretch")
-                    host = url.split("/")[2] if "://" in url else url
-                    st.markdown(f"[Open ↗]({url}) · `{host}`")
+            grid_items = []
+            for url in images[:13]:
+                meta_entry = image_meta.get(url, {})
+                caption_bits = []
+                if meta_entry.get("description"):
+                    caption_bits.append(meta_entry["description"])
+                if meta_entry.get("source_call"):
+                    caption_bits.append(f"via {meta_entry['source_call']}")
+                host = url.split("/")[2] if "://" in url else url
+                grid_items.append({
+                    "url": url,
+                    "caption": " · ".join(caption_bits) if caption_bits else None,
+                    "link": f"[Open ↗]({url}) · `{host}`",
+                })
+            render_image_grid(grid_items)
         else:
             st.warning("No images found. Try different wording or toggle `topic` to 'general'.")
 
@@ -211,11 +229,10 @@ with tab_search:
                     st.caption(content[:200] + "…" if len(content) > 200 else content)
 
 SUGGESTION_BUBBLES = [
-    "What's last 2 months trending on pinterest" ,
-    "Hot bachelorette party trends",
-    "What's going viral on Pinterest right now?",
-    "Punch monkey meme",
-    "FIFA World Cup 2026 fan culture trends",
+    "What's trending on Pinterest this week?",
+    "Tell me about the Mob Wife aesthetic",
+    "What wedding color palettes are trending?",
+    "Any trends about to decay?",
 ]
 
 with tab_chat:
@@ -238,10 +255,10 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if msg.get("images"):
-                cols = st.columns(3)
-                for idx, img in enumerate(msg["images"][:9]):
-                    with cols[idx % 3]:
-                        st.image(img["url"], caption=img.get("description") or None, width="stretch")
+                render_image_grid([
+                    {"url": img["url"], "caption": img.get("description") or None}
+                    for img in msg["images"][:9]
+                ])
 
     prompt = st.session_state.chat_trigger or None
     st.session_state.chat_trigger = None
