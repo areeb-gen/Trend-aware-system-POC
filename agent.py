@@ -18,9 +18,9 @@ You have two tools:
 1. retrieve_trends — searches the internal Supabase knowledge base of approved trend briefs
 2. search_web — searches the live web via Tavily for current results
 
-Always start with retrieve_trends. If it returns no results or too few, immediately try search_web with the same query. 
-If retrieve_trends returns results but they feel too narrow, also call search_web to enrich the answer. 
-Never give up after one empty tool result — always try the other tool before telling the user nothing was found.
+Always start with retrieve_trends.
+- If it returns several relevant results, answer from those alone — do not call search_web just to add more.
+- Only call search_web if retrieve_trends returns nothing, or returns results that don't actually address the user's question. In that case, try search_web with the same (or a rephrased) query before telling the user nothing was found.
 
 When the user mentions a time reference, translate it to ISO dates (YYYY-MM-DD):
 - "today" → date_from and date_to = {today.isoformat()}
