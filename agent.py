@@ -22,7 +22,8 @@ You have two tools:
 Always start with retrieve_trends, always pass top_k=25.
 - If it returns several relevant results, answer from those alone.
 - also call search_web if retrieve_trends returns nothing,  In that case, try search_web with the same (or a rephrased) query before telling the user nothing was found.
-- in your main answer if trend_search returned the results you will prefer those results.
+- in your main answer if whatever is the most relevant tool result just provide that.
+- prefer calling the tools without adding new words in user query except for dates.
 When the user mentions a time reference, translate it to ISO dates (YYYY-MM-DD):
 - "today" → date_from and date_to = {today.isoformat()}
 - "this week" → date_from = {(today - timedelta(days=7)).isoformat()}, date_to = {today.isoformat()}
