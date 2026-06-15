@@ -1,5 +1,6 @@
 import base64
 import html
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import streamlit as st
@@ -32,11 +33,14 @@ def render_image_grid(items: list[dict], n_cols: int = 3, height: int = 220, max
     skipped entirely rather than leaving a broken tile. `items` may contain more
     than `max_display` candidates so skipped ones can be backfilled.
     """
+    candidates = items[:max_display * 2]
+    with ThreadPoolExecutor(max_workers=len(candidates) or 1) as ex:
+        srcs = list(ex.map(_fetch_image_data_uri, [item["url"] for item in candidates]))
+
     resolved = []
-    for item in items:
+    for item, src in zip(candidates, srcs):
         if len(resolved) >= max_display:
             break
-        src = _fetch_image_data_uri(item["url"])
         if src:
             resolved.append({**item, "src": src})
 
@@ -272,15 +276,19 @@ SUGGESTION_BUBBLES = [
     "What's trending on Pinterest this week?",
     "Tell me about kool aid pineapple trend",
     "What wedding color palettes are trending?",
-    "Any trends about to decay?",
+    "Punch the monkey",
 ]
 
-with tab_chat:
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-    if "chat_trigger" not in st.session_state:
-        st.session_state.chat_trigger = None
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "chat_trigger" not in st.session_state:
+    st.session_state.chat_trigger = None
 
+_chat_input = st.chat_input("Ask Stampy about any trend or meme...")
+if _chat_input:
+    st.session_state.chat_trigger = _chat_input
+
+with tab_chat:
     # Show suggestion bubbles only on empty chat
     if not st.session_state.chat_history:
         st.markdown("#### Hey! What are you curious about?")
@@ -302,9 +310,6 @@ with tab_chat:
 
     prompt = st.session_state.chat_trigger or None
     st.session_state.chat_trigger = None
-
-    if not prompt:
-        prompt = st.chat_input("Ask Stampy about any trend or meme...") or None
 
     if prompt:
         st.session_state.chat_history.append({"role": "user", "content": prompt})
