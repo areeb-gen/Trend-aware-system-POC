@@ -64,46 +64,44 @@ st.caption("Ask about any meme, trend, or cultural reference — Stampy will fin
 
 tab_chat, tab_search = st.tabs(["Chat with Stampy", "Search"])
 
-with st.sidebar:
-    st.header("Controls")
-    provider_key = list(PROVIDERS.keys())[0]
-    use_classifier = st.toggle(
-        "Use light LLM classifier",
-        value=False,
-        help="On: one small LLM call picks topic/time_range and rewrites the query (e.g. appends the current year). Off: Tavily auto_parameters does the classification.",
-    )
-    synthesize = st.toggle(
-        "LLM synthesis for explanation",
-        value=False,
-        help="Disabled for now — using Tavily's built-in answer.",
-    )
-    show_freshness_rerank = False
-    freshness_rerank = True
+provider_key = list(PROVIDERS.keys())[0]
 
-    if show_freshness_rerank:
-        freshness_rerank = st.toggle(
-            "Freshness re-rank sources",
-            value=True,
-            help="Multiplicative time decay on Tavily's relevance score.",
+show_freshness_rerank = False
+freshness_rerank = True
+show_advanced = False
+search_depth = "advanced"
+max_results = 4
+topic_override = "(auto)"
+time_range_override = "(auto)"
+exact_match_override = "(auto)"
+half_life_days = 14
+include_image_descriptions = True
+domains_text = ", ".join(IMAGE_DOMAINS)
+
+with tab_search:
+    query = st.text_input(
+        "What meme or trend are you looking for?",
+        placeholder="e.g. Justin Bieber at Coachella",
+    )
+
+    with st.expander("Controls"):
+        use_classifier = st.toggle(
+            "Use light LLM classifier",
+            value=False,
+            help="On: one small LLM call picks topic/time_range and rewrites the query (e.g. appends the current year). Off: Tavily auto_parameters does the classification.",
         )
-    use_rag = st.toggle(
-        "RAG — Supabase knowledge base",
-        value=True,
-        help="Embed the query and retrieve semantically similar trend briefs from Supabase to enrich the explanation.",
-    )
+        synthesize = st.toggle(
+            "LLM synthesis for explanation",
+            value=False,
+            help="Disabled for now — using Tavily's built-in answer.",
+        )
+        use_rag = st.toggle(
+            "RAG — Supabase knowledge base",
+            value=True,
+            help="Embed the query and retrieve semantically similar trend briefs from Supabase to enrich the explanation.",
+        )
 
-    show_advanced = False
-    search_depth = "advanced"
-    max_results = 4
-    topic_override = "(auto)"
-    time_range_override = "(auto)"
-    exact_match_override = "(auto)"
-    half_life_days = 14
-    include_image_descriptions = True
-    domains_text = ", ".join(IMAGE_DOMAINS)
-
-    if show_advanced:
-        with st.expander("Advanced search"):
+        if show_advanced:
             search_depth = st.selectbox(
                 "Tavily search_depth", ["advanced", "basic", "fast", "ultra-fast"], index=0
             )
@@ -129,12 +127,6 @@ with st.sidebar:
                 "Image search include_domains (comma-separated)",
                 value=", ".join(IMAGE_DOMAINS),
             )
-
-with tab_search:
-    query = st.text_input(
-        "What meme or trend are you looking for?",
-        placeholder="e.g. Justin Bieber at Coachella",
-    )
 
     if st.button("Find your thing", disabled=not query, type="primary"):
         cfg = Config(
