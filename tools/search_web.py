@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from tavily import TavilyClient
 
 # Domains known to serve embeddable images (no hotlink/session protection).
-IMAGE_DOMAINS = [
+_EMBEDDABLE_IMAGE_DOMAINS = [
     "imgur.com",
     "reddit.com",
     "knowyourmeme.com",
@@ -76,7 +76,6 @@ def execute(query: str, time_range: str | None = None, max_results: int = 10) ->
         include_images=True,
         include_image_descriptions=False,
         max_results=max_results,
-        include_domains=IMAGE_DOMAINS,
     )
     if time_range:
         image_kwargs["time_range"] = time_range

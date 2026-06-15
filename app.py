@@ -73,43 +73,58 @@ with st.sidebar:
         value=False,
         help="Disabled for now — using Tavily's built-in answer.",
     )
-    freshness_rerank = st.toggle(
-        "Freshness re-rank sources",
-        value=False,
-        help="Multiplicative time decay on Tavily's relevance score.",
-    )
+    show_freshness_rerank = False
+    freshness_rerank = True
+
+    if show_freshness_rerank:
+        freshness_rerank = st.toggle(
+            "Freshness re-rank sources",
+            value=True,
+            help="Multiplicative time decay on Tavily's relevance score.",
+        )
     use_rag = st.toggle(
         "RAG — Supabase knowledge base",
         value=True,
         help="Embed the query and retrieve semantically similar trend briefs from Supabase to enrich the explanation.",
     )
 
-    with st.expander("Advanced search"):
-        search_depth = st.selectbox(
-            "Tavily search_depth", ["advanced", "basic", "fast", "ultra-fast"], index=0
-        )
-        max_results = st.slider("max_results per call", 1, 20, 4)
-        topic_override = st.selectbox(
-            "topic override", ["(auto)", "news", "general"], index=0
-        )
-        time_range_override = st.selectbox(
-            "time_range override", ["(auto)", "day", "week", "month", "year"], index=0
-        )
-        exact_match_override = st.selectbox(
-            "exact_match override", ["(auto)", "on", "off"], index=0
-        )
-        half_life_days = st.slider(
-            "Freshness half-life (days)", 1, 60, 14, disabled=not freshness_rerank
-        )
-        include_image_descriptions = st.toggle(
-            "Tavily image descriptions (vision captions)",
-            value=True,
-            help="Tavily runs a vision model on context-call images and returns captions. Off = save Tavily credits. (Image-call descriptions are already disabled — Tavily returns empty for narrow-domain searches.)",
-        )
-        domains_text = st.text_area(
-            "Image search include_domains (comma-separated)",
-            value=", ".join(IMAGE_DOMAINS),
-        )
+    show_advanced = False
+    search_depth = "advanced"
+    max_results = 4
+    topic_override = "(auto)"
+    time_range_override = "(auto)"
+    exact_match_override = "(auto)"
+    half_life_days = 14
+    include_image_descriptions = True
+    domains_text = ", ".join(IMAGE_DOMAINS)
+
+    if show_advanced:
+        with st.expander("Advanced search"):
+            search_depth = st.selectbox(
+                "Tavily search_depth", ["advanced", "basic", "fast", "ultra-fast"], index=0
+            )
+            max_results = st.slider("max_results per call", 1, 20, 4)
+            topic_override = st.selectbox(
+                "topic override", ["(auto)", "news", "general"], index=0
+            )
+            time_range_override = st.selectbox(
+                "time_range override", ["(auto)", "day", "week", "month", "year"], index=0
+            )
+            exact_match_override = st.selectbox(
+                "exact_match override", ["(auto)", "on", "off"], index=0
+            )
+            half_life_days = st.slider(
+                "Freshness half-life (days)", 1, 60, 14, disabled=not freshness_rerank
+            )
+            include_image_descriptions = st.toggle(
+                "Tavily image descriptions (vision captions)",
+                value=True,
+                help="Tavily runs a vision model on context-call images and returns captions. Off = save Tavily credits. (Image-call descriptions are already disabled — Tavily returns empty for narrow-domain searches.)",
+            )
+            domains_text = st.text_area(
+                "Image search include_domains (comma-separated)",
+                value=", ".join(IMAGE_DOMAINS),
+            )
 
 with tab_search:
     query = st.text_input(
@@ -255,7 +270,7 @@ with tab_search:
 
 SUGGESTION_BUBBLES = [
     "What's trending on Pinterest this week?",
-    "Tell me about the Mob Wife aesthetic",
+    "Tell me about kool aid pineapple trend",
     "What wedding color palettes are trending?",
     "Any trends about to decay?",
 ]
