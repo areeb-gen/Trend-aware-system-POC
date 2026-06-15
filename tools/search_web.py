@@ -63,7 +63,7 @@ def execute(query: str, time_range: str | None = None, max_results: int = 10) ->
         search_depth="advanced",
         include_answer=True,
         include_images=True,
-        include_image_descriptions=True,
+        include_image_descriptions=False,
         max_results=max_results,
     )
     if time_range:
