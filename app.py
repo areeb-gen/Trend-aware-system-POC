@@ -281,6 +281,13 @@ if _chat_input:
     st.session_state.chat_trigger = _chat_input
 
 with tab_chat:
+    with st.expander("Controls"):
+        chat_model = st.selectbox(
+            "Model",
+            ["gpt-4o-mini", "grok-4.20-non-reasoning", "gpt-5-mini"],
+            index=0,
+        )
+
     # Show suggestion bubbles only on empty chat
     if not st.session_state.chat_history:
         st.markdown("#### Hey! What are you curious about?")
@@ -311,7 +318,7 @@ with tab_chat:
         with st.chat_message("assistant"):
             with st.spinner("Stampy is on it..."):
                 try:
-                    response, images = agent_run(prompt)
+                    response, images = agent_run(prompt, model=chat_model)
                 except Exception as e:
                     st.error(f"Agent failed: {e}")
                     st.stop()

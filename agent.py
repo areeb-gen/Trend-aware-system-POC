@@ -34,7 +34,10 @@ Be concise, casual, and specific. Always ground your answer in what the tools re
 
 
 def run(query: str, model: str = "gpt-4o-mini") -> tuple[str, list[dict]]:
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    if model.startswith("grok"):
+        client = OpenAI(api_key=os.environ["XAI_API_KEY"], base_url="https://api.x.ai/v1")
+    else:
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     messages = [
         {"role": "system", "content": _system_prompt()},
         {"role": "user", "content": query},
